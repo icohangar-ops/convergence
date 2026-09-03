@@ -116,6 +116,46 @@ def add_blocked_decision(decision: Dict[str, Any]) -> Dict[str, Any]:
     return {"added": True, "decision": item.to_dict()}
 
 
+@router.post("/uipath/intake")
+def uipath_intake(payload: Dict[str, Any], _: str = Depends(_auth)) -> Dict[str, Any]:
+    action = payload.get("action", "analyze")
+
+    if action == "init":
+        acquirer = payload.get("acquirer", "")
+        target = payload.get("target", "")
+        day_post_close = int(payload.get("day_post_close", 0) or 0)
+        return init_convergence(acquirer=acquirer, target=target, day_post_close=day_post_close, _="")
+
+    workstream_type = payload.get("workstream_type", "")
+    if workstream_type not in WORKSTREAM_MAP:
+        raise HTTPException(404, f"Unknown workstream: {workstream_type}")
+
+    cls = WORKSTREAM_MAP[workstream_type]
+    brief = WorkstreamBrief(
+        title=payload.get("title") or f"UiPath intake {workstream_type}",
+        acquirer=payload.get("acquirer", _tower.acquirer),
+        target=payload.get("target", _tower.target),
+        day_post_close=int(payload.get("day_post_close", _tower.day_post_close) or 0),
+    )
+    ws = cls(brief)
+    agents = ws.get_agents()
+    mesh = EnterpriseOrchestrator(agents=agents, context=ws.context)
+    try:
+        report = mesh.orchestrate(
+            payload.get("prompt") or f"Analyze integration workstream: {workstream_type}",
+            workflow_title=payload.get("workflow_title") or f"UiPath intake: {workstream_type}",
+        )
+    except InferenceError as exc:
+        raise HTTPException(503, f"inference backend unavailable: {exc}")
+    return {
+        "workstream_type": workstream_type,
+        "report": report.render(),
+        "duration_ms": report.duration_ms,
+        "agents": [t.agent for t in report.turns],
+        "workflow_steps": len(report.workflow.steps),
+    }
+
+
 @router.get("/decisions")
 def list_decisions(domain: str = "", status: str = "") -> Dict[str, Any]:
     cases = _registry.all()

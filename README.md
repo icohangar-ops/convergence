@@ -87,6 +87,12 @@ curl -X POST http://localhost:8000/api/v1/convergence/init \
 
 # Run multi-agent analysis on a workstream
 curl -X POST http://localhost:8000/api/v1/workstreams/chart_of_accounts/analyze
+
+# UiPath handoff into Convergence
+curl -X POST http://localhost:8000/api/v1/uipath/intake \
+  -H "Authorization: Bearer $API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"analyze","workstream_type":"coa_mapping","title":"UiPath intake"}'
 ```
 
 ---
@@ -100,6 +106,7 @@ curl -X POST http://localhost:8000/api/v1/workstreams/chart_of_accounts/analyze
 | POST | `/api/v1/convergence/init` | Initialize Convergence for a deal |
 | GET | `/api/v1/workstreams` | List all workstreams |
 | POST | `/api/v1/workstreams/{type}/analyze` | Run multi-agent analysis |
+| POST | `/api/v1/uipath/intake` | UiPath handoff into initialization or workstream analysis |
 | GET | `/api/v1/decisions` | List all CHP decisions |
 | POST | `/api/v1/decisions/{id}/validate` | Third-party validation (lock promotion) |
 
